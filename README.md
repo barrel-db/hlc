@@ -11,6 +11,11 @@ and Consistent Snapshots in Globally Distributed
 Databases](http://www.cse.buffalo.edu/tech-reports/2014-04.pdf) and is based
 on the [cockroach](https://github.com/cockroachdb/cockroach/blob/master/util/hlc/hlc.go) implementation.
 
+> Note: you can use it to have timestamps that are are a combination of both a
+> physical and a logical component to support monotonic increments without
+> degenerate cases causing timestamps to diverge from wall clock time. It's
+> usefull to distribute transactions or such things.
+
 ## Example of usage
 
 Create a logical clock using `enki_hlc:new/0`:
