@@ -41,8 +41,11 @@ B = enki_hlc:timestamp(C),
 
 enki_hlc:set_manual_clock(MClock, 1),
 B1 = enki_hlc:now(C),
-true = enki_util:ts_less(A, B1).`''
+true = enki_util:ts_less(A, B1).
+```
+
 To test if they are equal use `hlc:ts_equal/2`.
+
 ## Ownership and License
 
 The contributors are listed in AUTHORS. This project uses the MPL v2
@@ -65,7 +68,9 @@ Under C4.1 process, you are more than welcome to help us by:
 To  run the test suite:
 
 ```
-make test`''
+make test
+```
+
 
 
 ## Modules ##

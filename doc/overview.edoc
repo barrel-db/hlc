@@ -26,11 +26,11 @@ Create a logical clock using `enki_hlc:new/0':
 > can use `enki_hlc:new/1' to pass a function and use your own clock.
 
 
-You can update the current clock from the members using `hlc:update/2`.
+You can update the current clock from the members using `hlc:update/2'.
 
 ### Comparaison
 
-Compare 2 clocks using `hlc:ts_less/2` or `hlc:ts_equal/2`:
+Compare 2 clocks using `hlc:ts_less/2' or `hlc:ts_equal/2':
 
 Ex, compare if A is inferior to B:
 
@@ -49,7 +49,7 @@ true = enki_util:ts_less(A, B1).
 
 '''
 
-To test if they are equal use `hlc:ts_equal/2`.
+To test if they are equal use `hlc:ts_equal/2'.
 
 
 ## Ownership and License
