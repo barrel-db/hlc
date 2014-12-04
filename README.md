@@ -18,14 +18,14 @@ on the [cockroach](https://github.com/cockroachdb/cockroach/blob/master/util/hlc
 
 ## Example of usage
 
-Create a logical clock using `enki_hlc:new/0`:
+Create a logical clock using `hlc:new/0`:
 
 ```
-{ok, C} = enki_hlc:new()
+{ok, C} = hlc:new()
 ```
 
 > Note: by default, it is using the physical clock (`erlang:now/0`) , but you
-> can use `enki_hlc:new/1` to pass a function and use your own clock.
+> can use `hlc:new/1` to pass a function and use your own clock.
 
 You can update the current clock from the members using `hlc:update/2`.
 
@@ -36,16 +36,16 @@ Compare 2 clocks using `hlc:ts_less/2` or `hlc:ts_equal/2`:
 Ex, compare if A is inferior to B:
 
 ```
-{MClock, MClockFun} = enki_hlc:manual_clock(),
-{ok, C} = enki_hlc:new(MClockFun),
+{MClock, MClockFun} = hlc:manual_clock(),
+{ok, C} = hlc:new(MClockFun),
 
-A = enki_hlc:timestamp(C),
-B = enki_hlc:timestamp(C),
+A = hlc:timestamp(C),
+B = hlc:timestamp(C),
 
 ?assert(A =:= B),
 
-enki_hlc:set_manual_clock(MClock, 1),
-B1 = enki_hlc:now(C),
+hlc:set_manual_clock(MClock, 1),
+B1 = hlc:now(C),
 true = enki_util:ts_less(A, B1).
 ```
 
