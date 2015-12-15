@@ -31,8 +31,8 @@
 
 -export([new/0, new/1,
          close/1,
-         set_maxdrift/2,
-         get_maxdrift/1,
+         set_maxoffset/2,
+         get_maxoffset/1,
          timestamp/1,
          now/1,
          update/2]).
@@ -50,7 +50,7 @@
 
 -record(clock, {physical_clock,
                 ts,
-                maxdrift}).
+                maxoffset}).
 
 -type timestamp() :: #timestamp{}.
 -export_type([timestamp/0]).
@@ -72,7 +72,7 @@ close(Ref) ->
     gen_server:call(Ref, stop).
 
 
-%% @doc Sets the maximal drift from the physical clock that a call to
+%% @doc Sets the maximal offset from the physical clock that a call to
 %% Update may cause. A well-chosen value is large enough to ignore a
 %% reasonable amount of clock skew but will prevent ill-configured nodes
 %% from dramatically skewing the wall time of the clock into the future.
@@ -80,16 +80,16 @@ close(Ref) ->
 %%
 %% A value of zero disables this safety feature.  The default value for
 %% a new instance is zero.
--spec set_maxdrift(pid(), integer()) -> ok.
-set_maxdrift(Ref, MaxDrift) ->
-    gen_server:call(Ref, {set_maxdrift, MaxDrift}).
+-spec set_maxoffset(pid(), integer()) -> ok.
+set_maxoffset(Ref, MaxOffset) ->
+    gen_server:call(Ref, {set_maxoffset, MaxOffset}).
 
 
-%% @doc returns the maximal drift allowed.
-%%  A value of 0 means drift checking is disabled.
--spec get_maxdrift(pid()) -> integer().
-get_maxdrift(Ref) ->
-    gen_server:call(Ref, get_maxdrift).
+%% @doc returns the maximal offset allowed.
+%%  A value of 0 means offset checking is disabled.
+-spec get_maxoffset(pid()) -> integer().
+get_maxoffset(Ref) ->
+    gen_server:call(Ref, get_maxoffset).
 
 %% @doc return a copy of the clock timestamp without adjusting it
 -spec timestamp(pid()) -> timestamp().
@@ -108,8 +108,8 @@ now(Ref) ->
 %% @doc takes a hybrid timestamp, usually originating from an event
 %% received from another member of a distributed system. The clock is
 %% updated and the hybrid timestamp  associated to the receipt of the
-%% event returned.  An error may only occur if drift checking is active
-%% and  the remote timestamp was rejected due to clock drift,  in which
+%% event returned.  An error may only occur if offset checking is active
+%% and  the remote timestamp was rejected due to clock offset,  in which
 %% case the state of the clock will not have been  altered. To timestamp
 %% events of local origin, use Now instead.
 -spec update(pid(), timestamp()) ->
@@ -173,14 +173,14 @@ ts_equal(_, _) ->
 init([Fun]) ->
     {ok, #clock{physical_clock=Fun,
                 ts = #timestamp{},
-                maxdrift = 0}}.
+                maxoffset = 0}}.
 
 %% @private
-handle_call({set_maxdrift, MaxDrift}, _From, Clock) ->
-    {reply, ok, Clock#clock{maxdrift=MaxDrift}};
+handle_call({set_maxoffset, MaxOffset}, _From, Clock) ->
+    {reply, ok, Clock#clock{maxoffset=MaxOffset}};
 
-handle_call(get_maxdrift, _From, #clock{maxdrift=MaxDrift}=Clock) ->
-    {reply, MaxDrift, Clock};
+handle_call(get_maxoffset, _From, #clock{maxoffset=MaxOffset}=Clock) ->
+    {reply, MaxOffset, Clock};
 
 handle_call(timestamp, _From, #clock{ts=TS}=Clock) ->
     {reply, TS, Clock};
@@ -196,7 +196,7 @@ handle_call(now, _From, #clock{physical_clock=PhysicalCLock, ts=TS}=Clock) ->
     {reply, NewTS, Clock#clock{ts=NewTS}};
 
 handle_call({update, RT}, _From, #clock{physical_clock=PhysicalCLock,
-                                        ts=TS, maxdrift=MaxDrift}=Clock)  ->
+                                        ts=TS, maxoffset=MaxOffset}=Clock)  ->
     Now = PhysicalCLock(),
 
     #timestamp{wall_time=RTWalltime, logical=RTLogical} = RT,
@@ -214,8 +214,8 @@ handle_call({update, RT}, _From, #clock{physical_clock=PhysicalCLock,
             {reply, NewTS, Clock#clock{ts=NewTS}};
 
         false when RTWalltime > TSWalltime ->
-            if ((MaxDrift > 0) and (Drift > MaxDrift)) ->
-                    error_logger:info_msg("Remote wall time drifts from
+            if ((MaxOffset > 0) and (Drift > MaxOffset)) ->
+                    error_logger:info_msg("Remote wall time offsets from
                                 localphysical clock: %p (%p ahead)",
                                 [RTWalltime, Drift]),
 
@@ -329,9 +329,10 @@ equal_test() ->
     ?assertMatch(false, hlc:ts_equal(A, B1)).
 
 clock_test() ->
+    error_logger:tty(false),
     {MClock, MClockFun} = hlc:manual_clock(),
     {ok, C} = hlc:new(MClockFun),
-    hlc:set_maxdrift(C, 1000),
+    hlc:set_maxoffset(C, 1000),
 
     Cases = [{5, send, nil, ?ts(5,0)},
              {6, send, nil, ?ts(6,0)},
@@ -360,14 +361,15 @@ clock_test() ->
                 end
         end, Cases).
 
-set_maxdrift_test() ->
+set_maxoffset_test() ->
+    error_logger:tty(false),
     {_MClock, MClockFun} = hlc:manual_clock(123456789),
     SkewedTime = 123456789 + 51,
     {ok, C} = hlc:new(MClockFun),
 
-    ?assert(hlc:get_maxdrift(C) =:= 0),
-    hlc:set_maxdrift(C, 50),
-    ?assert(hlc:get_maxdrift(C) =:= 50),
+    ?assert(hlc:get_maxoffset(C) =:= 0),
+    hlc:set_maxoffset(C, 50),
+    ?assert(hlc:get_maxoffset(C) =:= 50),
 
     hlc:now(C),
     TS = hlc:timestamp(C),
@@ -375,7 +377,7 @@ set_maxdrift_test() ->
 
     ?assertMatch({error, _}, hlc:update(C, ?ts(SkewedTime, 0))),
 
-    hlc:set_maxdrift(C, 0),
+    hlc:set_maxoffset(C, 0),
     ?assertMatch(#timestamp{wall_time=SkewedTime},
                  hlc:update(C, ?ts(SkewedTime, 0))).
 
