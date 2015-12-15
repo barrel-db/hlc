@@ -253,8 +253,17 @@ terminate(_Reason, _Clock) ->
 
 %% timestamp in milliseconds
 physical_clock() ->
-    {Mega,Sec,Micro} = erlang:now(),
+    {Mega,Sec,Micro} = erlang_ts(),
     (Mega*1000000+Sec)*1000000+Micro.
+
+
+erlang_ts() ->
+    try
+        erlang:timestamp()
+    catch
+        error:undef ->
+            erlang:now()
+    end.
 
 
 manual_clock_loop(Last) ->
