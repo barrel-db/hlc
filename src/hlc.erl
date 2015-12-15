@@ -185,8 +185,7 @@ handle_call(now, _From, #clock{physical_clock=PhysicalCLock, ts=TS}=Clock) ->
     NewTS = if TS#timestamp.wall_time >= Now ->
             TS#timestamp{logical=TS#timestamp.logical + 1};
         true ->
-            TS#timestamp{wall_time=Now,
-                         logical=0}
+            TS#timestamp{wall_time=Now, logical=0}
     end,
 
     {reply, NewTS, Clock#clock{ts=NewTS}};
@@ -195,10 +194,8 @@ handle_call({update, RT}, _From, #clock{physical_clock=PhysicalCLock,
                                         ts=TS, maxdrift=MaxDrift}=Clock)  ->
     Now = PhysicalCLock(),
 
-    #timestamp{wall_time=RTWalltime,
-               logical=RTLogical} = RT,
-    #timestamp{wall_time=TSWalltime,
-               logical=TSLogical} = TS,
+    #timestamp{wall_time=RTWalltime, logical=RTLogical} = RT,
+    #timestamp{wall_time=TSWalltime, logical=TSLogical} = TS,
 
     Drift = RTWalltime - Now,
 
@@ -213,7 +210,7 @@ handle_call({update, RT}, _From, #clock{physical_clock=PhysicalCLock,
 
         false when RTWalltime > TSWalltime ->
             if ((MaxDrift > 0) and (Drift > MaxDrift)) ->
-                    error_logger:error_msg("Remote wall time drifts from
+                    error_logger:info_msg("Remote wall time drifts from
                                 localphysical clock: %p (%p ahead)",
                                 [RTWalltime, Drift]),
 
