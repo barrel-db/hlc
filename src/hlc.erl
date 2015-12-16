@@ -24,53 +24,128 @@
 %% We don't want warnings about the use of erlang:now/0 in
 %% %% this module.
 -compile(nowarn_deprecated_function).
-
--behaviour(gen_server).
-
 -include("hlc.hrl").
 
 -export([new/0, new/1,
-         close/1,
+         now/1,
+         update/2,
+         timestamp/1,
          set_maxoffset/2,
          get_maxoffset/1,
-         timestamp/1,
-         now/1,
-         update/2]).
+         less/2,
+         equal/2]).
 
 -export([physical_clock/0]).
 -export([manual_clock/0, manual_clock/1,
          set_manual_clock/2]).
 
--export([ts_less/2, ts_equal/2]).
-
-%% gen_server callbacks
--export([init/1, handle_call/3, handle_cast/2, handle_info/2,
-         code_change/3, terminate/2]).
-
-
--record(clock, {physical_clock,
+-record(clock, {phys_clock,
                 ts,
                 maxoffset}).
 
+-type clock() :: #clock{}.
 -type timestamp() :: #timestamp{}.
--export_type([timestamp/0]).
+-export_type([clock/0,
+              timestamp/0]).
 
 
 %% @doc create a new hybrid logical clock.
--spec new() -> {ok, pid()} | {error, any()}.
+-spec new() ->  clock().
 new() ->
     new(fun physical_clock/0).
 
 %% @doc create a new hybrid logical clock with a custom physical clock function.
--spec new(fun()) -> {ok, pid()} | {error, any()}.
+-spec new(fun()) -> clock().
 new(ClockFun) ->
-    gen_server:start_link(?MODULE, [ClockFun], []).
+    #clock{phys_clock=ClockFun, ts=#timestamp{}, maxoffset=0}.
 
-%% close the hybrid logical clock
--spec close(pid) -> ok.
-close(Ref) ->
-    gen_server:call(Ref, stop).
+%% @doc  returns a timestamp associated with an event from the local
+%% machine that may be sent to other members of the distributed network.
+%% This is the counterpart of Update, which is passed a timestamp
+%% received from another member of the distributed network.
+-spec now(clock()) -> {timestamp(), clock()}.
+now(#clock{phys_clock=PhysClock, ts=TS} = Clock) ->
+    Now = PhysClock(),
+    NewTS = if TS#timestamp.wall_time >= Now ->
+            TS#timestamp{logical=TS#timestamp.logical + 1};
+        true ->
+            TS#timestamp{wall_time=Now, logical=0}
+    end,
+    {NewTS, Clock#clock{ts=NewTS}}.
 
+%% @doc takes a hybrid timestamp, usually originating from an event
+%% received from another member of a distributed system. The clock is
+%% updated and the hybrid timestamp  associated to the receipt of the
+%% event returned.  An error may only occur if offset checking is active
+%% and  the remote timestamp was rejected due to clock offset,  in which
+%% case the state of the clock will not have been  altered. To timestamp
+%% events of local origin, use Now instead.
+-spec update(timestamp(), clock()) ->
+    {ok, timestamp(), clock()}
+    | {timeahead, timestamp()}.
+update(RT, #clock{phys_clock=PhysClock, ts=TS, maxoffset=MaxOffset} = Clock) ->
+    Now = PhysClock(),
+
+    #timestamp{wall_time=RTWalltime, logical=RTLogical} = RT,
+    #timestamp{wall_time=TSWalltime, logical=TSLogical} = TS,
+
+    Offset = RTWalltime - Now,
+
+    %% test if physical clock is ahead of both wall times.
+    NowIsAhead = ((Now > TSWalltime) and (Now > RTWalltime)),
+
+    case NowIsAhead of
+        true ->
+            %% set new wall_time and reset logical clock
+            NewTS = TS#timestamp{wall_time=Now, logical=0},
+            {ok, NewTS, Clock#clock{ts=NewTS}};
+
+        false when RTWalltime > TSWalltime ->
+            if ((MaxOffset > 0) and (Offset > MaxOffset)) ->
+                    error_logger:info_msg("Remote wall time offsets from
+                                localphysical clock: %p (%p ahead)",
+                                [RTWalltime, Offset]),
+
+                    {timeahead, TS};
+                true ->
+                    NewTS = TS#timestamp{wall_time=RTWalltime,
+                                         logical = RTLogical +1},
+                    {ok, NewTS, Clock#clock{ts=NewTS}}
+            end;
+        false when TSWalltime > RTWalltime ->
+            NewTS = TS#timestamp{logical=TSLogical +1},
+            {ok, NewTS, Clock#clock{ts=NewTS}};
+        false ->
+            TSLogical1 = if RTLogical > TSLogical -> RTLogical;
+                true -> TSLogical
+            end,
+            NewTS = TS#timestamp{logical=TSLogical1 +1},
+            {ok, NewTS, Clock#clock{ts=NewTS}}
+    end.
+
+
+%% @doc return a copy of the clock timestamp without adjusting it
+-spec timestamp(clock()) -> timestamp().
+timestamp(#clock{ts=TS}) -> TS.
+
+%% @doc compare if one timestamps happen before the other
+-spec less(timestamp(), timestamp()) -> true | false.
+less(#timestamp{wall_time=W, logical=LA},
+               #timestamp{wall_time=W, logical=LB}) when LA < LB ->
+    true;
+less(#timestamp{wall_time=WA}, #timestamp{wall_time=WB})
+        when WA < WB ->
+    true;
+less(_, _) ->
+    false.
+
+
+%% @doc compare if 2 timestamps are equal
+-spec equal(timestamp(), timestamp()) -> true | false.
+equal(TS, TS) ->
+    true;
+equal(_, _) ->
+    false.
 
 %% @doc Sets the maximal offset from the physical clock that a call to
 %% Update may cause. A well-chosen value is large enough to ignore a
@@ -80,43 +155,23 @@ close(Ref) ->
 %%
 %% A value of zero disables this safety feature.  The default value for
 %% a new instance is zero.
--spec set_maxoffset(pid(), integer()) -> ok.
-set_maxoffset(Ref, MaxOffset) ->
-    gen_server:call(Ref, {set_maxoffset, MaxOffset}).
-
+-spec set_maxoffset(non_neg_integer(), clock()) -> ok.
+set_maxoffset(Offset, Clock) when Offset >= 0 ->
+    Clock#clock{maxoffset=Offset};
+set_maxoffset(_, _) ->
+    error(badarg).
 
 %% @doc returns the maximal offset allowed.
 %%  A value of 0 means offset checking is disabled.
--spec get_maxoffset(pid()) -> integer().
-get_maxoffset(Ref) ->
-    gen_server:call(Ref, get_maxoffset).
+-spec get_maxoffset(clock()) -> non_neg_integer().
+get_maxoffset(#clock{maxoffset=Offset}) ->
+    Offset.
 
-%% @doc return a copy of the clock timestamp without adjusting it
--spec timestamp(pid()) -> timestamp().
-timestamp(Ref) ->
-    gen_server:call(Ref, timestamp).
-
-%% @doc  returns a timestamp associated with an event from the local
-%% machine that may be sent to other members of the distributed network.
-%% This is the counterpart of Update, which is passed a timestamp
-%% received from another member of the distributed network.
--spec now(pid()) -> timestamp().
-now(Ref) ->
-    gen_server:call(Ref, now).
-
-
-%% @doc takes a hybrid timestamp, usually originating from an event
-%% received from another member of a distributed system. The clock is
-%% updated and the hybrid timestamp  associated to the receipt of the
-%% event returned.  An error may only occur if offset checking is active
-%% and  the remote timestamp was rejected due to clock offset,  in which
-%% case the state of the clock will not have been  altered. To timestamp
-%% events of local origin, use Now instead.
--spec update(pid(), timestamp()) ->
-    timestamp()
-    | {error, {time_ahead, timestamp()}}.
-update(Ref, RT) ->
-    gen_server:call(Ref, {update, RT}).
+%% @doc timestamp in milliseconds
+-spec physical_clock() -> non_neg_integer().
+physical_clock() ->
+    {Mega,Sec,Micro} = erlang_ts(),
+    (Mega*1000000+Sec)*1000000+Micro.
 
 
 %% @doc create a manually controlled physicl clock
@@ -144,121 +199,6 @@ set_manual_clock(Pid, TS) ->
     Pid ! {update_ts, TS},
     ok.
 
-%% @doc compare if one timestamps happen before the other
--spec ts_less(timestamp(), timestamp()) -> true | false.
-ts_less(#timestamp{wall_time=W, logical=LA},
-               #timestamp{wall_time=W, logical=LB}) when LA < LB ->
-    true;
-ts_less(#timestamp{wall_time=WA}, #timestamp{wall_time=WB})
-        when WA < WB ->
-    true;
-ts_less(_, _) ->
-    false.
-
-
-%% compare if 2 timestamps are equal
--spec ts_equal(timestamp(), timestamp()) -> true | false.
-ts_equal(TS, TS) ->
-    true;
-ts_equal(_, _) ->
-    false.
-
-
-
-%% ---------------------
-%% gen server callbacks
-%% ---------------------
-
-%% @private
-init([Fun]) ->
-    {ok, #clock{physical_clock=Fun,
-                ts = #timestamp{},
-                maxoffset = 0}}.
-
-%% @private
-handle_call({set_maxoffset, MaxOffset}, _From, Clock) ->
-    {reply, ok, Clock#clock{maxoffset=MaxOffset}};
-
-handle_call(get_maxoffset, _From, #clock{maxoffset=MaxOffset}=Clock) ->
-    {reply, MaxOffset, Clock};
-
-handle_call(timestamp, _From, #clock{ts=TS}=Clock) ->
-    {reply, TS, Clock};
-
-handle_call(now, _From, #clock{physical_clock=PhysicalCLock, ts=TS}=Clock) ->
-    Now = PhysicalCLock(),
-    NewTS = if TS#timestamp.wall_time >= Now ->
-            TS#timestamp{logical=TS#timestamp.logical + 1};
-        true ->
-            TS#timestamp{wall_time=Now, logical=0}
-    end,
-
-    {reply, NewTS, Clock#clock{ts=NewTS}};
-
-handle_call({update, RT}, _From, #clock{physical_clock=PhysicalCLock,
-                                        ts=TS, maxoffset=MaxOffset}=Clock)  ->
-    Now = PhysicalCLock(),
-
-    #timestamp{wall_time=RTWalltime, logical=RTLogical} = RT,
-    #timestamp{wall_time=TSWalltime, logical=TSLogical} = TS,
-
-    Drift = RTWalltime - Now,
-
-    %% test if physical clock is ahead of both wall times.
-    NowIsAhead = ((Now > TSWalltime) and (Now > RTWalltime)),
-
-    case NowIsAhead of
-        true ->
-            %% set new wall_time and reset logical clock
-            NewTS = TS#timestamp{wall_time=Now, logical=0},
-            {reply, NewTS, Clock#clock{ts=NewTS}};
-
-        false when RTWalltime > TSWalltime ->
-            if ((MaxOffset > 0) and (Drift > MaxOffset)) ->
-                    error_logger:info_msg("Remote wall time offsets from
-                                localphysical clock: %p (%p ahead)",
-                                [RTWalltime, Drift]),
-
-                    {reply, {error, {time_ahead, TS}}, Clock};
-                true ->
-                    NewTS = TS#timestamp{wall_time=RTWalltime,
-                                         logical = RTLogical +1},
-                    {reply, NewTS, Clock#clock{ts=NewTS}}
-            end;
-        false when TSWalltime > RTWalltime ->
-            NewTS = TS#timestamp{logical=TSLogical +1},
-            {reply, NewTS, Clock#clock{ts=NewTS}};
-        false ->
-            TSLogical1 = if RTLogical > TSLogical -> RTLogical;
-                true -> TSLogical
-            end,
-            NewTS = TS#timestamp{logical=TSLogical1 +1},
-            {reply, NewTS, Clock#clock{ts=NewTS}}
-    end.
-
-%% @private
-handle_cast(_Msg, Clock) ->
-    {noreply, Clock}.
-
-%% @private
-handle_info(_Info, Clock) ->
-    {noreply, Clock}.
-
-%% @private
-code_change(_OldVsn, Clock, _Extra) ->
-    {ok, Clock}.
-
-%% @private
-terminate(_Reason, _Clock) ->
-    ok.
-
-
-%% timestamp in milliseconds
-physical_clock() ->
-    {Mega,Sec,Micro} = erlang_ts(),
-    (Mega*1000000+Sec)*1000000+Micro.
-
-
 erlang_ts() ->
     try
         erlang:timestamp()
@@ -284,13 +224,13 @@ manual_clock_loop(Last) ->
 -define(ts(W, L), #timestamp{wall_time=W, logical=L}).
 
 basic_test() ->
-    {ok, C} = hlc:new(),
-    S = hlc:now(C),
+    C = hlc:new(),
+    {S, _} = hlc:now(C),
     timer:sleep(5),
     T = #timestamp{wall_time=hlc:physical_clock()},
 
-    ?assertMatch(true, hlc:ts_less(S, T)),
-    ?assertMatch(false, hlc:ts_less(T, S)),
+    ?assertMatch(true, hlc:less(S, T)),
+    ?assertMatch(false, hlc:less(T, S)),
     ?assert(T#timestamp.wall_time > S#timestamp.wall_time),
     ?assert(S#timestamp.logical =:= 0).
 
@@ -304,7 +244,7 @@ manual_clock_test() ->
 
 less_test() ->
     {MClock, MClockFun} = hlc:manual_clock(),
-    {ok, C} = hlc:new(MClockFun),
+    C = hlc:new(MClockFun),
 
     A = hlc:timestamp(C),
     B = hlc:timestamp(C),
@@ -312,27 +252,27 @@ less_test() ->
     ?assert(A =:= B),
 
     hlc:set_manual_clock(MClock, 1),
-    B1 = hlc:now(C),
-    ?assertMatch(true, hlc:ts_less(A, B1)).
+    {B1, _} = hlc:now(C),
+    ?assertMatch(true, hlc:less(A, B1)).
 
 equal_test() ->
     {MClock, MClockFun} = hlc:manual_clock(),
-    {ok, C} = hlc:new(MClockFun),
+    C = hlc:new(MClockFun),
 
     A = hlc:timestamp(C),
     B = hlc:timestamp(C),
 
-    ?assertMatch(true, hlc:ts_equal(A, B)),
+    ?assertMatch(true, hlc:equal(A, B)),
 
     hlc:set_manual_clock(MClock, 1),
-    B1 = hlc:now(C),
-    ?assertMatch(false, hlc:ts_equal(A, B1)).
+    {B1, _} = hlc:now(C),
+    ?assertMatch(false, hlc:equal(A, B1)).
 
 clock_test() ->
     error_logger:tty(false),
     {MClock, MClockFun} = hlc:manual_clock(),
-    {ok, C} = hlc:new(MClockFun),
-    hlc:set_maxoffset(C, 1000),
+    C0 = hlc:new(MClockFun),
+    C = hlc:set_maxoffset(1000, C0),
 
     Cases = [{5, send, nil, ?ts(5,0)},
              {6, send, nil, ?ts(6,0)},
@@ -344,41 +284,44 @@ clock_test() ->
              {11, recv, ?ts(10, 31), ?ts(11, 0)},
              {11, send, nil, ?ts(11, 1)}],
 
-    lists:foreach(fun
-            ({WallClock, send, _Input, Expected}) ->
+    _ = lists:foldl(fun
+            ({WallClock, send, _Input, Expected}, C1) ->
                 hlc:set_manual_clock(MClock, WallClock),
-                Current = hlc:now(C),
-                ?assertMatch(Current, Expected);
-            ({WallClock, recv, Input, Expected}) ->
+                {Current, C2} = hlc:now(C1),
+                ?assertMatch(Current, Expected),
+                C2;
+            ({WallClock, recv, Input, Expected}, C1) ->
                 hlc:set_manual_clock(MClock, WallClock),
-                Previous = hlc:timestamp(C),
-                case hlc:update(C, Input) of
-                    {error, {_Reason, Current}} ->
-                        ?assertMatch(Current, Expected);
-                    Current ->
+                Previous = hlc:timestamp(C1),
+                case hlc:update(Input, C1) of
+                    {timeahead, Current} ->
+                        ?assertMatch(Current, Expected),
+                        C1;
+                    {ok, Current, C2} ->
                         ?assert(Current /= Previous),
-                        ?assertMatch(Current, Expected)
+                        ?assertMatch(Current, Expected),
+                        C2
                 end
-        end, Cases).
+        end, C,  Cases).
 
 set_maxoffset_test() ->
     error_logger:tty(false),
     {_MClock, MClockFun} = hlc:manual_clock(123456789),
     SkewedTime = 123456789 + 51,
-    {ok, C} = hlc:new(MClockFun),
+    C = hlc:new(MClockFun),
 
     ?assert(hlc:get_maxoffset(C) =:= 0),
-    hlc:set_maxoffset(C, 50),
-    ?assert(hlc:get_maxoffset(C) =:= 50),
+    C2 = hlc:set_maxoffset(50, C),
+    ?assert(hlc:get_maxoffset(C2) =:= 50),
 
-    hlc:now(C),
-    TS = hlc:timestamp(C),
+    {_, C3} = hlc:now(C2),
+    TS = hlc:timestamp(C3),
     ?assert(TS#timestamp.wall_time =:= 123456789),
 
-    ?assertMatch({error, _}, hlc:update(C, ?ts(SkewedTime, 0))),
+    ?assertMatch({timeahead, _}, hlc:update(?ts(SkewedTime, 0), C3)),
 
-    hlc:set_maxoffset(C, 0),
-    ?assertMatch(#timestamp{wall_time=SkewedTime},
-                 hlc:update(C, ?ts(SkewedTime, 0))).
+    C4 = hlc:set_maxoffset(0, C3),
+    ?assertMatch({ok, #timestamp{wall_time=SkewedTime}, _},
+                 hlc:update(?ts(SkewedTime, 0), C4)).
 
 -endif.

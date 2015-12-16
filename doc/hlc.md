@@ -8,8 +8,6 @@
 
 hlc.
 
-__Behaviours:__ [`gen_server`](gen_server.md).
-
 <a name="description"></a>
 
 ## Description ##
@@ -32,6 +30,16 @@ the future of the local physical  clock.
 
 
 
+### <a name="type-clock">clock()</a> ###
+
+
+<pre><code>
+clock() = #clock{}
+</code></pre>
+
+
+
+
 ### <a name="type-timestamp">timestamp()</a> ###
 
 
@@ -44,10 +52,10 @@ timestamp() = #timestamp{}
 ## Function Index ##
 
 
-<table width="100%" border="1" cellspacing="0" cellpadding="2" summary="function index"><tr><td valign="top"><a href="#close-1">close/1</a></td><td></td></tr><tr><td valign="top"><a href="#get_maxoffset-1">get_maxoffset/1</a></td><td>returns the maximal offset allowed.</td></tr><tr><td valign="top"><a href="#manual_clock-0">manual_clock/0</a></td><td>create a manually controlled physicl clock.</td></tr><tr><td valign="top"><a href="#manual_clock-1">manual_clock/1</a></td><td>create a manually controlled physicl clock and initialise it
+<table width="100%" border="1" cellspacing="0" cellpadding="2" summary="function index"><tr><td valign="top"><a href="#equal-2">equal/2</a></td><td>compare if 2 timestamps are equal.</td></tr><tr><td valign="top"><a href="#get_maxoffset-1">get_maxoffset/1</a></td><td>returns the maximal offset allowed.</td></tr><tr><td valign="top"><a href="#less-2">less/2</a></td><td>compare if one timestamps happen before the other.</td></tr><tr><td valign="top"><a href="#manual_clock-0">manual_clock/0</a></td><td>create a manually controlled physicl clock.</td></tr><tr><td valign="top"><a href="#manual_clock-1">manual_clock/1</a></td><td>create a manually controlled physicl clock and initialise it
 with a default ts.</td></tr><tr><td valign="top"><a href="#new-0">new/0</a></td><td>create a new hybrid logical clock.</td></tr><tr><td valign="top"><a href="#new-1">new/1</a></td><td>create a new hybrid logical clock with a custom physical clock function.</td></tr><tr><td valign="top"><a href="#now-1">now/1</a></td><td> returns a timestamp associated with an event from the local
-machine that may be sent to other members of the distributed network.</td></tr><tr><td valign="top"><a href="#physical_clock-0">physical_clock/0</a></td><td></td></tr><tr><td valign="top"><a href="#set_manual_clock-2">set_manual_clock/2</a></td><td>change the value of the manually controlled physicall clock.</td></tr><tr><td valign="top"><a href="#set_maxoffset-2">set_maxoffset/2</a></td><td>Sets the maximal offset from the physical clock that a call to
-Update may cause.</td></tr><tr><td valign="top"><a href="#timestamp-1">timestamp/1</a></td><td>return a copy of the clock timestamp without adjusting it.</td></tr><tr><td valign="top"><a href="#ts_equal-2">ts_equal/2</a></td><td></td></tr><tr><td valign="top"><a href="#ts_less-2">ts_less/2</a></td><td>compare if one timestamps happen before the other.</td></tr><tr><td valign="top"><a href="#update-2">update/2</a></td><td>takes a hybrid timestamp, usually originating from an event
+machine that may be sent to other members of the distributed network.</td></tr><tr><td valign="top"><a href="#physical_clock-0">physical_clock/0</a></td><td>timestamp in milliseconds.</td></tr><tr><td valign="top"><a href="#set_manual_clock-2">set_manual_clock/2</a></td><td>change the value of the manually controlled physicall clock.</td></tr><tr><td valign="top"><a href="#set_maxoffset-2">set_maxoffset/2</a></td><td>Sets the maximal offset from the physical clock that a call to
+Update may cause.</td></tr><tr><td valign="top"><a href="#timestamp-1">timestamp/1</a></td><td>return a copy of the clock timestamp without adjusting it.</td></tr><tr><td valign="top"><a href="#update-2">update/2</a></td><td>takes a hybrid timestamp, usually originating from an event
 received from another member of a distributed system.</td></tr></table>
 
 
@@ -55,26 +63,39 @@ received from another member of a distributed system.</td></tr></table>
 
 ## Function Details ##
 
-<a name="close-1"></a>
+<a name="equal-2"></a>
 
-### close/1 ###
+### equal/2 ###
 
 <pre><code>
-close(Ref::pid) -&gt; ok
+equal(TS::<a href="#type-timestamp">timestamp()</a>, X2::<a href="#type-timestamp">timestamp()</a>) -&gt; true | false
 </code></pre>
 <br />
+
+compare if 2 timestamps are equal
 
 <a name="get_maxoffset-1"></a>
 
 ### get_maxoffset/1 ###
 
 <pre><code>
-get_maxoffset(Ref::pid()) -&gt; integer()
+get_maxoffset(Clock::<a href="#type-clock">clock()</a>) -&gt; non_neg_integer()
 </code></pre>
 <br />
 
 returns the maximal offset allowed.
 A value of 0 means offset checking is disabled.
+
+<a name="less-2"></a>
+
+### less/2 ###
+
+<pre><code>
+less(Timestamp::<a href="#type-timestamp">timestamp()</a>, X2::<a href="#type-timestamp">timestamp()</a>) -&gt; true | false
+</code></pre>
+<br />
+
+compare if one timestamps happen before the other
 
 <a name="manual_clock-0"></a>
 
@@ -104,7 +125,7 @@ with a default ts.
 ### new/0 ###
 
 <pre><code>
-new() -&gt; {ok, pid()} | {error, any()}
+new() -&gt; <a href="#type-clock">clock()</a>
 </code></pre>
 <br />
 
@@ -115,7 +136,7 @@ create a new hybrid logical clock.
 ### new/1 ###
 
 <pre><code>
-new(ClockFun::function()) -&gt; {ok, pid()} | {error, any()}
+new(ClockFun::function()) -&gt; <a href="#type-clock">clock()</a>
 </code></pre>
 <br />
 
@@ -126,7 +147,7 @@ create a new hybrid logical clock with a custom physical clock function.
 ### now/1 ###
 
 <pre><code>
-now(Ref::pid()) -&gt; <a href="#type-timestamp">timestamp()</a>
+now(Clock::<a href="#type-clock">clock()</a>) -&gt; {<a href="#type-timestamp">timestamp()</a>, <a href="#type-clock">clock()</a>}
 </code></pre>
 <br />
 
@@ -139,7 +160,12 @@ received from another member of the distributed network.
 
 ### physical_clock/0 ###
 
-`physical_clock() -> any()`
+<pre><code>
+physical_clock() -&gt; non_neg_integer()
+</code></pre>
+<br />
+
+timestamp in milliseconds
 
 <a name="set_manual_clock-2"></a>
 
@@ -157,7 +183,7 @@ change the value of the manually controlled physicall clock.
 ### set_maxoffset/2 ###
 
 <pre><code>
-set_maxoffset(Ref::pid(), MaxOffset::integer()) -&gt; ok
+set_maxoffset(Offset::non_neg_integer(), Clock::<a href="#type-clock">clock()</a>) -&gt; ok
 </code></pre>
 <br />
 
@@ -174,38 +200,18 @@ a new instance is zero.
 ### timestamp/1 ###
 
 <pre><code>
-timestamp(Ref::pid()) -&gt; <a href="#type-timestamp">timestamp()</a>
+timestamp(Clock::<a href="#type-clock">clock()</a>) -&gt; <a href="#type-timestamp">timestamp()</a>
 </code></pre>
 <br />
 
 return a copy of the clock timestamp without adjusting it
-
-<a name="ts_equal-2"></a>
-
-### ts_equal/2 ###
-
-<pre><code>
-ts_equal(TS::<a href="#type-timestamp">timestamp()</a>, X2::<a href="#type-timestamp">timestamp()</a>) -&gt; true | false
-</code></pre>
-<br />
-
-<a name="ts_less-2"></a>
-
-### ts_less/2 ###
-
-<pre><code>
-ts_less(Timestamp::<a href="#type-timestamp">timestamp()</a>, X2::<a href="#type-timestamp">timestamp()</a>) -&gt; true | false
-</code></pre>
-<br />
-
-compare if one timestamps happen before the other
 
 <a name="update-2"></a>
 
 ### update/2 ###
 
 <pre><code>
-update(Ref::pid(), RT::<a href="#type-timestamp">timestamp()</a>) -&gt; <a href="#type-timestamp">timestamp()</a> | {error, {time_ahead, <a href="#type-timestamp">timestamp()</a>}}
+update(RT::<a href="#type-timestamp">timestamp()</a>, Clock::<a href="#type-clock">clock()</a>) -&gt; {ok, <a href="#type-timestamp">timestamp()</a>, <a href="#type-clock">clock()</a>} | {timeahead, <a href="#type-timestamp">timestamp()</a>}
 </code></pre>
 <br />
 

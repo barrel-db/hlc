@@ -3,7 +3,7 @@
 %% file, You can obtain one at http://mozilla.org/MPL/2.0/.
 
 @copyright 2014-2015 Benoît Chesneau.
-@version 1.0.0
+@version 2.0.0
 @title hlc - Hybrid Logical Clock in Erlang.
 
 @doc
@@ -22,20 +22,27 @@ Databases](http://www.cse.buffalo.edu/tech-reports/2014-04.pdf).
 [![Hex pm](http://img.shields.io/hexpm/v/hlc.svg?style=flat)](https://hex.pm/packages/hlc)
 
 
+> :heavy_exclamation_mark: hlc is not stored as gen_server anymore allowing you to reuse it more easily in your own
+> project.
+
 ## Example of usage
 
 Create a logical clock using `hlc:new/0':
 
 ```
-{ok, C} = hlc:new()
+
+C = hlc:new()
 '''
 
-> Note: by default, it is using the physical clock (`erlang:timestamp/0' or `erlang:now/0' on old systems) , but you
+> By default, it is using the physical clock (`erlang:timestamp/0' or `erlang:now/0' on old systems) , but you
 > can use `hlc:new/1' to pass a function and use your own clock. Make sure to use the correct [time warp
 > mode](http://www.erlang.org/doc/apps/erts/time_correction.html#Time_Warp) for your system.
 
 
 You can update the current clock from the members using `hlc:update/2'.
+
+:raised_hand: A clock is not locked, you need to make sure that only one user can update it at a time (using the `now/1'
+or `update/2' functions.
 
 ### Comparaison
 
