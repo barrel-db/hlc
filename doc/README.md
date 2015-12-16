@@ -30,7 +30,7 @@ C = hlc:new()
 > can use `hlc:new/1` to pass a function and use your own clock. Make sure to use the correct [time warp
 > mode](http://www.erlang.org/doc/apps/erts/time_correction.html#Time_Warp) for your system.
 
-You can update the current clock from the members using `hlc:update/2`.
+You can update the current clock from the members of the cluster using `hlc:update/2`.
 
 > :heavy_exclamation_mark: A clock is not locked, you need to make sure that only one user can update it at a time
 > (using the `now/1` or `update/2` functions.
@@ -43,7 +43,7 @@ Ex, compare if A is inferior to B:
 
 ```
 {MClock, MClockFun} = hlc:manual_clock(),
-{ok, C} = hlc:new(MClockFun),
+C = hlc:new(MClockFun),
 
 A = hlc:timestamp(C),
 B = hlc:timestamp(C),
@@ -51,8 +51,8 @@ B = hlc:timestamp(C),
 ?assert(A =:= B),
 
 hlc:set_manual_clock(MClock, 1),
-B1 = hlc:now(C),
-true = hlc:ts_less(A, B1).
+{B1, C2} = hlc:now(C),
+true = hlc:less(A, B1).
 ```
 
 To test if they are equal use `hlc:ts_equal/2`.
