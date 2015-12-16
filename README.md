@@ -18,6 +18,10 @@ Databases](http://www.cse.buffalo.edu/tech-reports/2014-04.pdf).
 [![Build Status](https://travis-ci.org/barrel-db/hlc.png?branch=master)](https://travis-ci.org/barrel-db/hlc)
 [![Hex pm](http://img.shields.io/hexpm/v/hlc.svg?style=flat)](https://hex.pm/packages/hlc)
 
+## Documentation
+
+Full doc is available in the [`hlc`](http://github.com/barrel-db/hlc/blob/master/doc/hlc.md) module.
+
 ## Example of usage
 
 Create a logical clock using `hlc:new/0`:
@@ -34,10 +38,6 @@ You can update the current clock from the members of the cluster using `hlc:upda
 
 > :heavy_exclamation_mark: A clock is not locked, you need to make sure that only one user can update it at a time
 > using the `now/1` or `update/2` functions.
-
-## Documentation
-
-Full doc is available in the [`hlc`](http://github.com/barrel-db/hlc/blob/master/doc/hlc.md) module.
 
 ### Comparaison
 
