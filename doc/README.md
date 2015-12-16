@@ -33,7 +33,7 @@ C = hlc:new()
 You can update the current clock from the members of the cluster using `hlc:update/2`.
 
 > :heavy_exclamation_mark: A clock is not locked, you need to make sure that only one user can update it at a time
-> (using the `now/1` or `update/2` functions.
+> using the `now/1` or `update/2` functions.
 
 ### Comparaison
 
