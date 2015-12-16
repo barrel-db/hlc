@@ -35,6 +35,10 @@ You can update the current clock from the members of the cluster using `hlc:upda
 > :heavy_exclamation_mark: A clock is not locked, you need to make sure that only one user can update it at a time
 > using the `now/1` or `update/2` functions.
 
+## Documentation
+
+Full doc is available in the [`hlc`](hlc.md) module.
+
 ### Comparaison
 
 Compare 2 clocks using `hlc:ts_less/2` or `hlc:ts_equal/2`:
