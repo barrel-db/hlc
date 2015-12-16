@@ -49,7 +49,7 @@ B = hlc:timestamp(C),
 
 hlc:set_manual_clock(MClock, 1),
 B1 = hlc:now(C),
-true = enki_util:ts_less(A, B1).
+true = hlc:ts_less(A, B1).
 ```
 
 To test if they are equal use `hlc:ts_equal/2`.
