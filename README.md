@@ -13,7 +13,7 @@ Add `hlc` to your `rebar.config` dependencies:
 
 ```erlang
 {deps, [
-    {hlc, "3.0.2"}
+    {hlc, "3.0.3"}
 ]}.
 ```
 

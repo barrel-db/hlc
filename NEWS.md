@@ -1,5 +1,10 @@
 # Changelog
 
+## 3.0.3 - 2026-03-13
+
+- use boolean() type in specs for less/2 and equal/2
+- move project to barrel-db org
+
 ## 3.0.2 - 2026-01-29
 
 - fix format string bug in error logging (use ~p instead of %p)
