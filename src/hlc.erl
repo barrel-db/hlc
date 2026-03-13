@@ -195,7 +195,7 @@ stop_manual_clock(Pid) ->
 
 
 %% @doc compare if one timestamps happen before the other
--spec less(timestamp(), timestamp()) -> true | false.
+-spec less(timestamp(), timestamp()) -> boolean().
 less(#timestamp{wall_time=W, logical=LA},
      #timestamp{wall_time=W, logical=LB}) when LA < LB ->
   true;
@@ -206,7 +206,7 @@ less(_, _) ->
 
 
 %% @doc compare if 2 timestamps are equal
--spec equal(timestamp(), timestamp()) -> true | false.
+-spec equal(timestamp(), timestamp()) -> boolean().
 equal(TS, TS) -> true;
 equal(_, _) -> false.
 
