@@ -1,6 +1,6 @@
 # hlc - Hybrid Logical Clock in Erlang
 
-[![CI](https://github.com/benoitc/hlc/actions/workflows/ci.yml/badge.svg)](https://github.com/benoitc/hlc/actions/workflows/ci.yml)
+[![CI](https://github.com/barrel-db/hlc/actions/workflows/ci.yml/badge.svg)](https://github.com/barrel-db/hlc/actions/workflows/ci.yml)
 [![Hex.pm](https://img.shields.io/hexpm/v/hlc.svg?style=flat)](https://hex.pm/packages/hlc)
 
 hlc implements the Hybrid Logical Clock outlined in [Logical Physical Clocks and Consistent Snapshots in Globally Distributed Databases](http://www.cse.buffalo.edu/tech-reports/2014-04.pdf).
@@ -123,7 +123,7 @@ This project uses the MPL v2 license. See [LICENSE](LICENSE) for details.
 
 ## Contributing
 
-Contributions welcome! Please submit issues and pull requests on [GitHub](https://github.com/benoitc/hlc).
+Contributions welcome! Please submit issues and pull requests on [GitHub](https://github.com/barrel-db/hlc).
 
 To run the test suite:
 
