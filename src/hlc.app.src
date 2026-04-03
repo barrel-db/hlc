@@ -1,7 +1,7 @@
 {application, hlc,
  [
   {description, "hybrid logical clock"},
-  {vsn, "3.0.3"},
+  {vsn, "3.0.4"},
   {registered, []},
   {applications, [
                   kernel,

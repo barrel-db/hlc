@@ -1,5 +1,10 @@
 # Changelog
 
+## 3.0.4 - 2026-04-03
+
+- fix clock() type to include atom() for registered names
+- make clock_fun() type more precise
+
 ## 3.0.3 - 2026-03-13
 
 - use boolean() type in specs for less/2 and equal/2
