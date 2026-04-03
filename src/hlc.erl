@@ -53,7 +53,7 @@
 
 -type clock() :: pid() | atom().
 -type timestamp() :: #timestamp{}.
--type clock_fun() :: fun().
+-type clock_fun() :: fun(() -> non_neg_integer()).
 
 -export_type([clock/0,
               timestamp/0,
