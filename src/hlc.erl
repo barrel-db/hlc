@@ -51,7 +51,7 @@
 
 -include("hlc.hrl").
 
--type clock() :: pid().
+-type clock() :: pid() | atom().
 -type timestamp() :: #timestamp{}.
 -type clock_fun() :: fun().
 
